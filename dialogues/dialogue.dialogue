@@ -1,0 +1,8 @@
+~ start 
+
+First passenger: Je vais m'agenouiller 
+do GameState.do_crouch()
+First passenger: I am the passenger.
+- and i ride
+- and i ride
+- and i riiiiide

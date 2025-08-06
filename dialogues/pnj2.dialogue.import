@@ -1,0 +1,15 @@
+[remap]
+
+importer="dialogue_manager_compiler_13"
+type="Resource"
+uid="uid://babb70xqqpta8"
+path="res://.godot/imported/pnj2.dialogue-29ed5b59391080173d5e4e5dc24403bc.tres"
+
+[deps]
+
+source_file="res://dialogues/pnj2.dialogue"
+dest_files=["res://.godot/imported/pnj2.dialogue-29ed5b59391080173d5e4e5dc24403bc.tres"]
+
+[params]
+
+defaults=true
