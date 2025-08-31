@@ -17,8 +17,8 @@ config/icon="res://icon.svg"
 
 [autoload]
 
-DialogueManager="*res://addons/dialogue_manager/dialogue_manager.gd"
 GameState="*res://scripts/gameState.gd"
+DialogueManager="*res://addons/dialogue_manager/dialogue_manager.gd"
 
 [display]
 
@@ -30,7 +30,7 @@ window/stretch/mode="viewport"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/copilot/plugin.cfg", "res://addons/dialogue_manager/plugin.cfg")
+enabled=PackedStringArray("res://addons/dialogue_manager/plugin.cfg", "res://addons/proton_scatter/plugin.cfg", "res://addons/terrain_3d/plugin.cfg")
 
 [filesystem]
 

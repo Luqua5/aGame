@@ -58,7 +58,7 @@ var input_dir := Vector2.ZERO
 @onready var head: Node3D = $Head
 @onready var collider: CollisionShape3D = $Collider
 
-@onready var eyes := $"../../../eyes"
+@onready var eyes := $"../eyes"
 
 func _ready() -> void:
 	check_input_mappings()
@@ -207,11 +207,13 @@ func on_pnj_dialogue_ended(res: DialogueResource):
 
 
 func on_start_sleep():
-	#animation dodo
+	# Le player réagit au signal mais ne gère pas la logique
+	print("Player: Je m'endors...")
 	can_move = false
 	eyes.close_eyes()
 
 func on_wake_up():
-	#animation réveil
+	# Le player se réveille
+	print("Player: Je me réveille...")
 	can_move = true
 	eyes.open_eyes()

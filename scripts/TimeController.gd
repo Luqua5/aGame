@@ -3,18 +3,36 @@ extends Node
 @onready var sun : DirectionalLight3D = $"../SubViewportContainer/SubViewport/Sun"
 @onready var env : WorldEnvironment = $"../SubViewportContainer/SubViewport/WorldEnvironment"
 var current_step := 0
-@export var max_steps: int = 5
+@export var max_steps: int = 3
 @export var sun_color_gradient: Gradient = Gradient.new()
 @export var ambient_gradient: Gradient   = Gradient.new()
 var env_res : Environment
+
+var clouds_active := false
+
+var clouds_width := 512
+var clouds_height := 512
+var breathing_speed := 0.5
+var cloud_time := 0.0
 
 func _ready() -> void:
 	env_res = env.environment
 	update_time(0)
 
+
+
+func _process(delta: float) -> void:
+
+	if clouds_active:
+		animate_clouds(delta)
+
 func next_step():
 	current_step = clamp(current_step + 1, 0, max_steps)
 	var t = float(current_step) / max_steps
+	if(current_step == max_steps):
+		clouds_active = true
+		enable_clouds()
+	print("Current step:", current_step, "Time factor:", t	)
 	update_time(t)
 	
 func update_time(t):
@@ -42,3 +60,16 @@ func update_time(t):
 		# Exemple : on fait varier le dégradé du ciel
 		mat.sky_horizon_color = sun_color_gradient.sample(t)
 		mat.sky_top_color     = ambient_gradient.sample(t)  # ou un autre gradient
+
+func animate_clouds(delta: float) -> void:
+	cloud_time += delta * breathing_speed
+	#sin() rentre le chiffre dans une fonction sinusoidale donc rend un chiffre entre -1 et 1
+	var breathing_factor = sin(cloud_time) 
+	#on fait +1 et ensuite /2 pour avoir un chiffre toujours entre 0 et 1 et le lerp met les bornes
+	var frequency = lerp(0.15, 0.3, (breathing_factor + 1.0) / 2.0)
+    
+	env_res.sky.sky_material.sky_cover.noise.frequency = frequency
+
+func enable_clouds() -> void:
+	env_res.sky.sky_material.sky_cover.width = clouds_width
+	env_res.sky.sky_material.sky_cover.height = clouds_height

@@ -33,6 +33,8 @@ var camera_original_transform : Transform3D
 
 @onready var spawnPNJ := $"../bus/spawnPNJ"
 
+@onready var main_scene := get_node("/root/Main")
+
 
 
 #var playback : AnimationNodeStateMachinePlayback
@@ -45,7 +47,8 @@ func _ready() -> void:
 	bus.bus_arrived.connect(on_bus_arrived)
 	player = get_tree().get_nodes_in_group("Player")[0]
 	camera = get_tree().get_nodes_in_group("Camera")[0]
-	DialogueManager.dialogue_ended.connect(on_dialogue_ended)
+	# Supprimer la connexion globale qui causait le problème
+	# DialogueManager.dialogue_ended.connect(on_dialogue_ended)
 	$AnimationTree.active = true
 	#playback = $AnimationTree.get("parameters/playback")
 	if sad:
@@ -95,7 +98,8 @@ func _process(delta):
 
 		if discuss:
 			#playback.travel(idle_animation_name)
-			check_player_interaction()
+			# Plus besoin de check_player_interaction() !
+			pass
 				
 
 func on_bus_arrived():
@@ -103,35 +107,39 @@ func on_bus_arrived():
 		walking = true
 		following_bus = false
 		#playback.travel(walk_animation_name)
+
+# Nouvelle fonction appelée par l'Area3D
+func start_dialogue():
+	if not discuss:
+		return
+
+	discuss = false
+	camera_original_transform = camera.global_transform
+	print("dialogue start ", camera_original_transform)
 	
-func check_player_interaction():
-	var npc_pos = global_transform.origin
-	var player_pos = player.global_transform.origin
-	var to_npc = (npc_pos - player_pos).normalized()
-	var forward = -player.global_transform.basis.z.normalized()
-	var dist = npc_pos.distance_to(player_pos)
-	var facing_dot = forward.dot(to_npc)
-	if dist <= distance_interaction:
-		$Interact.visible = true
-		#look_at_player()
-		if Input.is_action_just_pressed("interact"):
-			discuss = false
-			$Interact.visible = false
-			camera_original_transform = camera.global_transform
-			dialogue_started.emit()
-			DialogueManager.show_dialogue_balloon(resource, "start")	
-			var camera_player = player.get_node("Head/Camera3D")
-			look_at(player.global_transform.origin,Vector3.UP)
-			rotate_y(PI)
-	else:
-		$Interact.visible = false
+	# Connecter uniquement CE PNJ pour CE dialogue
+	if not DialogueManager.dialogue_ended.is_connected(on_dialogue_ended):
+		DialogueManager.dialogue_ended.connect(on_dialogue_ended)
+	
+	dialogue_started.emit()
+	DialogueManager.show_dialogue_balloon(resource, "start")
+	look_at(player.global_transform.origin, Vector3.UP)
+	rotate_y(PI)
+	
+	# Cacher l'indicateur d'interaction
+	if main_scene and main_scene.has_method("hide_interact"):
+		main_scene.hide_interact()
 
 func on_dialogue_ended(res: DialogueResource):
 	if res == resource:
+		print("dialogue end ", camera_original_transform)
 		camera.global_transform = camera_original_transform
 		crouch = false
 		walking = true
-		$Interact.visible = false
+		
+		# DÉCONNECTER après usage pour éviter les interférences
+		if DialogueManager.dialogue_ended.is_connected(on_dialogue_ended):
+			DialogueManager.dialogue_ended.disconnect(on_dialogue_ended)
 		
 
 func do_crouch():
@@ -148,7 +156,7 @@ func look_at_player():
 	
 	var to_player = (player_pos - bone_global_pos).normalized()
 	
-	var desired_basis = Basis().looking_at(to_player, Vector3.UP)
+	var desired_basis = Basis.looking_at(to_player, Vector3.UP)
 	
 	var current_transform = skeleton.get_bone_global_pose(head_bone)
 	

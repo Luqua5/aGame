@@ -3,7 +3,6 @@ extends Node3D
 var current_phase := 0
 var phase_timer := 0.0
 var waiting := true
-var phase_durations := [5.0, 30.0, 30.0, 300.0, 300.0, 300.0] # en secondes
 @export var pnj1 : Node3D
 @export var pnj2 : Node3D
 @export var pnj3 : Node3D
@@ -15,6 +14,13 @@ var pnj_list : Array
 var video1 := "res://ressources/videos/video1.ogv"
 var video_list: Array
 
+# Phases du jeu correspondant aux moments de la journée
+var phase_names := ["Afternoon", "Evening", "Night"]
+
+@onready var sleep_label := $SubViewportContainer/SubViewport/sleep_canva/sleep_label
+@onready var sleep_canva := $SubViewportContainer/SubViewport/sleep_canva
+@onready var interact_label := $SubViewportContainer/SubViewport/interact_label  # Label pour afficher "E"
+
 @onready var main_menu := $mainMenu
 @onready var start_button := $mainMenu/VBoxContainer/StartButton
 @onready var quit_button := $mainMenu/VBoxContainer/QuitButton
@@ -25,6 +31,7 @@ var video_list: Array
 @onready var ambiance_sound:= $ambiance
 
 var game_start := false
+var can_sleep := false  # Pour contrôler quand le joueur peut dormir
 
 signal start_sleep
 signal wake_up
@@ -40,49 +47,53 @@ func _ready() -> void:
 	
 	start_button.pressed.connect(_on_start_pressed)
 	quit_button.pressed.connect(_on_quit_pressed)
+	
+	# Cacher les labels d'interface au début
+	if interact_label:
+		interact_label.visible = false
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
-	if waiting && game_start:
-		phase_timer += delta
-		#print(phase_timer)
-		#evenement aléatoire, faire passer un bus etc
-		if phase_timer >= phase_durations[current_phase]:
-			waiting = false
-			
-			start_sleep.emit()
-			await get_tree().create_timer(5.0).timeout
-			var tw = get_tree().create_tween()
-			tw.tween_property(ambiance_sound, "volume_db", -80.0, 4)
-			var new_stream = ResourceLoader.load(video_list[current_phase])
-			$media/video.stream = new_stream
-			$media/video.visible = true
-			$media/video.play()
-			await $media/video.finished
-			$media/video.visible = false
-			$media/video.stop()
-			wake_up.emit()
-			tw.tween_property(ambiance_sound, "volume_db", -23.0, 4)
-			await get_tree().create_timer(5.0).timeout
-
-			next_step()
-
-
-func start_timer():
-	phase_timer = 0
-	current_phase += 1
-	waiting = true
+	pass
 
 func on_dialogue_end(res: DialogueResource):
-	start_timer()
+	# Après un dialogue, permettre au joueur de dormir
+	can_sleep = true
 	
 func next_step():
 	print("next step")
-	#fonction qui réactive le bus et prépare mon pnj
-	bus.reset()
-	pnj_list[current_phase].do_start()
-	GameState.set_current_pnj(pnj_list[current_phase])
+	phase_beginning()
 	$TimeController.next_step()
+
+func trigger_sleep():
+	if not can_sleep:
+		return
+		
+	print("Le joueur s'endort...")
+	can_sleep = false
+	start_sleep.emit()  # Le player ferme les yeux
+	
+	# Attendre que les yeux se ferment complètement
+	await get_tree().create_timer(2.0).timeout
+	
+	# Fade out de l'ambiance sonore
+	var tw = get_tree().create_tween()
+	tw.tween_property(ambiance_sound, "volume_db", -80.0, 1.5)
+	
+	# Afficher le moment de la journée avec effet typewriter
+	var phase_text = phase_names[current_phase]
+	await _typewriter_effect(phase_text, 0.15)
+	
+	# Avancer à la phase suivante
+	current_phase += 1
+	next_step()
+	
+	# Réveil du joueur
+	wake_up.emit()
+	
+	# Fade in de l'ambiance sonore
+	tw = get_tree().create_tween()
+	tw.tween_property(ambiance_sound, "volume_db", -23.0, 1.5)
 	
 	
 func _on_start_pressed():
@@ -91,8 +102,46 @@ func _on_start_pressed():
 	$SubViewportContainer/SubViewport/Player/Head/Camera3D.current = true
 	player.can_move = true
 	game_start = true
-	pnj1.do_start()
-	$TimeController.update_time(0)
+	phase_beginning()
+	$TimeController.update_time(0.9)
 
 func _on_quit_pressed():
 	get_tree().quit()
+
+# Fonctions pour contrôler l'indicateur d'interaction
+func show_interact(message: String = "E"):
+	if interact_label:
+		interact_label.text = message
+		interact_label.visible = true
+
+func hide_interact():
+	if interact_label:
+		interact_label.visible = false
+
+func _typewriter_effect(target_text: String, delay: float = 0.1):
+	if not sleep_label:
+		print("Erreur : sleep_label non trouvé !")
+		return
+
+	sleep_label.text = ""
+	sleep_canva.visible = true
+	sleep_label.modulate.a = 1.0
+	
+	for i in range(target_text.length()):
+		sleep_label.text = target_text.substr(0, i + 1)
+		await get_tree().create_timer(delay).timeout
+	
+	# Attendre un peu avant de faire disparaître
+	await get_tree().create_timer(1.5).timeout
+
+	# Faire disparaître
+	var tween = get_tree().create_tween()
+	tween.tween_property(sleep_label, "modulate:a", 0.0, 0.8)
+	await tween.finished
+
+	sleep_canva.visible = false
+
+func phase_beginning():
+	bus.reset()
+	pnj_list[current_phase].do_start()
+	GameState.set_current_pnj(pnj_list[current_phase])
